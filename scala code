@@ -1,0 +1,56 @@
+package sparkproject
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.Metadata
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.decode
+import com.databricks.spark.avro._
+import com.databricks.spark.xml._
+import org.apache.hadoop.fs.FSDataInputStream
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.commons.io.IOUtils
+import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.Encoders.product
+
+case class Advertise(eurocents: Int,breakfast: Boolean)
+case class Advertisers(advertisers:Map[String,Seq[Advertise]])
+case class record(userId: String,unix_time: String,parkid:Map[String,Advertisers])
+object dattask {
+def main(args:Array[String]):Unit={
+    val conf = new SparkConf().setAppName("DATA").setMaster("local[*]")
+    val sc = new SparkContext(conf)
+    sc.setLogLevel("ERROR")
+    sc.hadoopConfiguration.set("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")  			
+					val spark= SparkSession.builder().getOrCreate()
+					import spark.implicits._
+	
+val Schema = Encoders.product[record].schema
+val rawDF = spark.sparkContext.textFile("C:/Users/Rajaraman/Desktop/task/data/hive.dat")
+val df = rawDF.map((s:String) => (s.split("['\u0001','\u0002','\u0003','\u0004',\u0005','\u0006','\u0007','\u0008',\u0009,\u0010]"))).toDF()
+//df.write.format("json").save("C:/Users/Rajaraman/Desktop/softwares -spark/outputpath/datjson1")
+val datjson=spark.read.format("json").schema(Schema).load("C:/Users/Rajaraman/Desktop/softwares -spark/outputpath/datjson1")
+//datjson.show(5,false)
+
+val exploded = df
+    .withColumn("value", explode(df("value.userid")))
+    .withColumn("unixtimestamp", explode(df("value.timeStamp")))
+    .drop("value")
+
+exploded.show(5,false)
+				  }
+}  
+  
